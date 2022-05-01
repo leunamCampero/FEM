@@ -1,0 +1,597 @@
+
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.integrate as integrate
+import scipy.special
+# from math import isclose
+
+
+def nf(r, p, m):
+    '''
+    Compute dimension of S_{r}^{p}(Delta) 
+    Read Book**1 pg 5, Proposition 2.6
+    '''
+    psi = sum((r[i] + 1) for i in range(1, m))
+    theta = sum((p[i] + 1) for i in range(m))
+    return theta - psi
+
+    
+def inv_f(x, x_i_1, x_i):
+    assert x_i - x_i_1 > 0, '[x_i_1, x_i] is not an interval'
+    return (x-x_i_1)/(x_i-x_i_1)
+        
+def G_B_S_Trig(xh, q, j, x_i_1, x_i, w):
+    '''
+    The generalized Bernstein basis for the trigonometric 
+    space defined on [0, 1], see Book**1 pg 20 Example 7.6.
+    '''
+    assert q > 0, 'q have to be greater than 0, See Book**1 pg 20'
+    x = inv_f(xh, x_i_1, x_i)
+    if (q == 1):
+        if (j == 0):
+            return np.sin(w*(1-x))/np.sin(w)
+        else:
+            return np.sin(w*x)/np.sin(w)
+    elif (q == 2):
+        if (j == 0):
+            return (1-np.cos(w*(1-x)))/(1-np.cos(w))
+        elif (j == 1):
+            return (np.cos(w*(1-x))+np.cos(w*x)-np.cos(w)-1)/(1-np.cos(w))
+        else:
+            return (1-np.cos(w*x))/(1-np.cos(w))
+    else:
+        if (j == 0):
+            b_0_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, 0, 0, 1, w), 0, 1)[0]
+            return 1 - integrate.quad(lambda y: (1/b_0_q_1)*G_B_S_Trig(y, q-1, 0, 0, 1, w), 0, x)[0]
+        elif (0 < j < q) and (q > 1):
+            b_j_1_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, j-1, 0, 1, w), 0, 1)[0]
+            b_j_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, j, 0, 1, w), 0, 1)[0]
+            s1 = integrate.quad(lambda y: (1/b_j_1_q_1)*G_B_S_Trig(y, q-1, j-1, 0, 1, w), 0, x)[0]
+            s2 = integrate.quad(lambda y: (1/b_j_q_1)*G_B_S_Trig(y, q-1, j, 0, 1, w), 0, x)[0]
+            return s1 - s2
+        else:
+            b_q_1_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, q-1, 0, 1, w), 0, 1)[0]
+            return integrate.quad(lambda y: (1/b_q_1_q_1)*G_B_S_Trig(y, q-1, q-1, 0, 1, w), 0, x)[0]
+        
+        
+def k_th_diff_G_B_S(k, xh, q, j, x_i_1, x_i, w):
+    '''
+    The generalized Bernstein basis for the trigonometric 
+    space defined on [0, 1], see Book**1 pg 20 Example 7.6.
+    '''
+    assert q > 0, 'q have to be greater than 0, See Book**1 pg 20'
+    if (k == 0):
+        return G_B_S_Trig(xh, q, j, x_i_1, x_i, w)
+    if (k > 0):
+        x = inv_f(xh, x_i_1, x_i)
+        dx = 1/(x_i - x_i_1)
+        if (q == 1):
+            if (k == 1):
+                if (j == 0):
+                    return -dx*np.cos(w*(1-x))*w/np.sin(w)
+                else:
+                    return dx*np.cos(w*x)*w/np.sin(w)
+            else:
+                if (j == 0):
+                    return -dx*np.sin(w*(1-x))*(w**2)/np.sin(w)
+                else:
+                    return -dx*np.sin(w*x)*(w**2)/np.sin(w)        
+        elif (q == 2):
+            if (k == 1):
+                if (j == 0):
+                    return -dx*np.sin(w*(1-x))*w/(1-np.cos(w))
+                elif (j == 1):
+                    return dx*w*(np.sin(w*(1-x))-np.sin(w*x))/(1-np.cos(w))
+                else:
+                    return  dx*np.sin(w*x)*w/(1-np.cos(w))
+            else:
+                if (j == 0):
+                    return np.cos(w*(1-x))*((dx*w)**2)/(1-np.cos(w))
+                elif (j == 1):
+                    return (dx*w)**2*(-np.cos(w*(1-x))-np.cos(w*x))/(1-np.cos(w))
+                else:
+                    return np.cos(w*x)*((dx*w)**2)/(1-np.cos(w))    
+        else:
+            if (j == 0):
+                b_0_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, 0, 0, 1, w), 0, 1)[0]
+                return -dx*(1/b_0_q_1)*k_th_diff_G_B_S(k-1, x, q-1, 0, 0, 1, w)
+            elif (0 < j < q) and (q > 1):
+                b_j_1_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, j-1, 0, 1, w),0, 1)[0]
+                b_j_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, j, 0, 1, w), 0, 1)[0]
+                s1 = dx*(1/b_j_1_q_1)*k_th_diff_G_B_S(k-1, x, q-1, j-1,  0, 1, w)
+                s2 = dx*(1/b_j_q_1)*k_th_diff_G_B_S(k-1, x, q-1, j,  0, 1, w)
+                return s1 - s2
+            else:
+                b_q_1_q_1 = integrate.quad(lambda y: G_B_S_Trig(y, q-1, q-1, 0, 1, w), 0, 1)[0]
+                return dx*(1/b_q_1_q_1)*k_th_diff_G_B_S(k-1, x, q-1, q-1,  0, 1, w)
+      
+def bin_(n, k):
+    '''
+    Function to compute the binomial coefficient times (-1)^{k+n}
+    See Function k_th_diff_G_B_S
+    '''
+    return ((-1)**(k+n))*scipy.special.binom(n, k)
+        
+def jump_xi_k(k, x, q, j, x_i_1, x_i, w):
+    eps = 1e-7
+    left_D = 0
+    right_D = 0
+    if (x_i_1 <= x - eps <= x_i):
+        left_D = k_th_diff_G_B_S(k, x, q, j, x_i_1, x_i, w)
+    if (x_i_1 <= x + eps <= x_i):
+        right_D = k_th_diff_G_B_S(k, x, q, j, x_i_1, x_i, w)
+    return left_D - right_D
+
+def plot_algebraic_B_Spline(p, x_i_1, x_i, w, lt):
+    assert p > 0, 'p have to be greater than 0, See Book**1 pg 20'
+    xc = np.linspace(x_i_1, x_i, lt, endpoint=True)
+    for q in range(p+1):
+        yc = []
+        for i in range(len(xc)):
+            yc.append(G_B_S_Trig(xc[i], p, q, x_i_1, x_i, w))
+        plt.plot(xc, yc)
+    return plt.show()
+
+def phi_i(x, x1, x2, i, tau_1):
+    '''
+    See ref**2 pg 4, eq (5)
+    '''
+    return x-x1[i]+tau_1+sum(x2[j]-x1[j] for j in range(i))
+    
+def get_n(vxi, vp):
+    '''
+    Function to obtain m^{i} = len(xi)-p^{i}-1 when we are considering Rational
+    multi-degree B-splines
+    '''
+    return [len(vxi[i])-vp[i]-1 for i in range(len(vp))]
+
+def mu_i(vn, i):
+    '''
+    Function to obtain the cumulative local dimension
+    See ref**2 pg 4
+    '''
+    return 0 if i == 0 else sum(vn[j] for j in range(i))
+
+def get_tau(x1, x2, tau_1):
+    '''
+    Function to compute phi^{i}(x_{1}^{i}) and phi^{i}(x_{2}^{i}) for i=1,...,m.
+    See ref**2 pg 5, eq (7), (8) and (9)
+    '''
+    vtau_1 = [phi_i(x1[i], x1, x2, i, tau_1) for i in range(len(x1))]
+    vtau_2 = [phi_i(x2[i], x1, x2, i, tau_1) for i in range(len(x2))]
+    return vtau_1, vtau_2
+
+def s_b_mu(x, p, x_i_1, x_i, w, q):
+    '''
+    Function to compute B_{j}^{i} in the definition of the global Bernstein basis
+    See ref**2 pg 12, Definition 4.3
+    '''
+    if (x_i_1 <= x <= x_i):
+        return G_B_S_Trig(x, p, q, x_i_1, x_i, w)
+    else:
+        return 0
+
+def D_s_b_mu(k, x, p, x_i_1, x_i, w, q):
+    '''
+    Function to compute one element in the column vector A_{rho}(A) 
+    in the Theorem of Bezier Extraction
+    See ref**2 pg 17, Theorem 6.2
+    '''
+    if (x_i_1 <= x <= x_i):
+        return k_th_diff_G_B_S(k, x, p, q, x_i_1, x_i, w)
+    else:
+        return 0
+
+def s_b_mu_d(k, x, p, x_i_1, x_i, w, q):
+    '''
+    Function to compute B_{j}^{i} in the definition of the global Bernstein basis
+    See ref**2 pg 12, Definition 4.3
+    '''
+    if (x_i_1 <= x <= x_i):
+        return k_th_diff_G_B_S(k, x, p, q, x_i_1, x_i, w)
+    else:
+        return 0
+    
+def get_matrix_b_mu(vp, Delta, tau_1, vw, lt):
+    '''
+    Generate a Matrix in whic every row is b_{\mu_{i-1}+j}(phi_{x}) 
+    evaluate in [x1[0],x2[m-1]]. Also return the vector [t1,t2] which 
+    the same number of elements than a row of the matrix Mb
+    '''
+    m = len(vp)
+    assert m > 1, 'Use plot_algebraic_B_Spline for a partition without breakpoints'
+    x1 = [Delta[i] for i in range(len(Delta)-1)]
+    x2 = [Delta[i] for i in range(1,len(Delta))]
+    ct = []
+    Mb = []
+    for i in range(m):
+        xc = np.linspace(x1[i], x2[i], lt, endpoint=True)
+        for x in xc:
+            ct.append(phi_i(x, x1, x2, i, tau_1))
+    # print(ct)
+    for i in range(m):
+        for q in range(vp[i]+1):
+            ptc = []
+            for k in range(m):
+                xc = np.linspace(x1[k], x2[k], lt, endpoint=True)
+                if (k == i):
+                    for x in xc:
+                        ptc.append(s_b_mu(x, vp[k], x1[k], x2[k], vw, q))
+                else: 
+                    for x in xc:
+                        ptc.append(0)
+            Mb.append(ptc)
+    return np.array(Mb), ct
+
+def get_matrix_b_mu_d(kk, vp, Delta, tau_1, vw, lt):
+    '''
+    Generate a Matrix in whic every row is b_{\mu_{i-1}+j}(phi_{x})
+    evaluate in [x1[0],x2[m-1]]. Also return the vector [t1,t2] which
+    the same number of elements than a row of the matrix Mb
+    '''
+    m = len(vp)
+    assert m > 1, 'Use plot_algebraic_B_Spline for a partition without breakpoints'
+    x1 = [Delta[i] for i in range(len(Delta)-1)]
+    x2 = [Delta[i] for i in range(1,len(Delta))]
+    ct = []
+    Mb = []
+    for i in range(m):
+        xc = np.linspace(x1[i], x2[i], lt, endpoint=True)
+        for x in xc:
+            ct.append(phi_i(x, x1, x2, i, tau_1))
+    for i in range(m):
+        for q in range(vp[i]+1):
+            ptc = []
+            for k in range(m):
+                xc = np.linspace(x1[k], x2[k], lt, endpoint=True)
+                #print(x1[k], x2[k])
+                if (k == i):
+                    for x in xc:
+                        ptc.append(s_b_mu_d(kk, x, vp[k], x1[k], x2[k], vw, q))
+                else:
+                    for x in xc:
+                        ptc.append(0)
+            Mb.append(ptc)
+    return np.array(Mb), ct
+
+def plot_b_mu(vp, Delta, tau_1, vw, lt):
+    Bb, ct = get_matrix_b_mu(vp, Delta, tau_1, vw, lt)
+    nr, nc = Bb.shape
+    for i in range(nr):
+        plt.plot(ct, Bb[i,:])
+    plt.show()
+    
+def plott_b_mu_d(k, vp, Delta, tau_1, vw, lt):
+    Bb, ct = get_matrix_b_mu_d(k, vp, Delta, tau_1, vw, lt)
+    nr, nc = Bb.shape
+    for i in range(nr):
+        plt.plot(ct, Bb[i,:])
+    plt.show()
+    
+def plott_CB(vp, Delta, tau_1, vw, lt, r):
+    '''
+    Function that plot the GTB-spline basis.
+    '''
+    A_r = A_rho_B(vp, r, vw, Delta)
+    # C = Extraction_Operator(A_r)
+    C = extraction_mat(A_r, len(vp))
+    Bb, ct = get_matrix_b_mu(vp, Delta, tau_1, vw, lt)
+    N = C.dot(Bb)
+    nr, nc = N.shape
+    for i in range(nr):
+        plt.plot(ct, N[i,:])
+    plt.show()
+
+def plot_s_b_mu(kk, vp, Delta, tau_1, vw, lt):
+    '''
+    Generate a Matrix in whic every row is b_{\mu_{i-1}+j}(phi_{x}) 
+    evaluate in [x1[0],x2[m-1]]. Also return the vector [t1,t2] which 
+    the same number of elements than a row of the matrix Mb, and plot it.
+    '''
+    m = len(vp)
+    assert m > 1, 'Use plot_algebraic_B_Spline for a partition without breakpoints'
+    x1 = [Delta[i] for i in range(len(Delta)-1)]
+    x2 = [Delta[i] for i in range(1,len(Delta))]
+    vtau_1, vtau_2 = get_tau(x1, x2, tau_1)
+    ct = []
+    for i in range(m):
+        xc = np.linspace(x1[i], x2[i], lt, endpoint=True)
+        for x in xc:
+            ct.append(phi_i(x, x1, x2, i, tau_1))
+    for i in range(m):
+        for q in range(vp[i]+1):
+            ptc = []
+            for k in range(m):
+                xc = np.linspace(x1[k], x2[k], lt, endpoint=True)
+                if (k == i):
+                    for x in xc:
+                        ptc.append(s_b_mu(x, vp[k], x1[k], x2[k], vw, q))
+                else: 
+                    for x in xc:
+                        ptc.append(0)
+            plt.plot(ct, ptc)
+    plt.show()    
+
+def plot_D_s_b_mu(kk, vp, Delta, tau_1, vw, lt):
+    '''
+    Generate a Matrix in whic every row is b_{\mu_{i-1}+j}(phi_{x}) 
+    evaluate in [x1[0],x2[m-1]]. Also return the vector [t1,t2] which 
+    the same number of elements than a row of the matrix Mb, and plot it.
+    '''
+    m = len(vp)
+    assert m > 1, 'Use plot_algebraic_B_Spline for a partition without breakpoints'
+    x1 = [Delta[i] for i in range(len(Delta)-1)]
+    x2 = [Delta[i] for i in range(1,len(Delta))]
+    vtau_1, vtau_2 = get_tau(x1, x2, tau_1)
+    ct = []
+    for i in range(m):
+        xc = np.linspace(x1[i], x2[i], lt, endpoint=True)
+        for x in xc:
+            ct.append(phi_i(x, x1, x2, i, tau_1))
+    for i in range(m):
+        for q in range(vp[i]+1):
+            ptc = []
+            for k in range(m):
+                xc = np.linspace(x1[k], x2[k], lt, endpoint=True)
+                if (k == i):
+                    for x in xc:
+                        ptc.append(D_s_b_mu(kk, x, vp[k], x1[k], x2[k], vw, q))
+                else: 
+                    for x in xc:
+                        ptc.append(0)
+            plt.plot(ct, ptc)
+    plt.show() 
+    
+def get_matrix_D_s_b_mu(kk, vp, Delta, tau_1, vw, lt):
+    '''
+    Generate a Matrix in whic every row is b_{\mu_{i-1}+j}(phi_{x}) 
+    evaluate in [x1[0],x2[m-1]]. Also return the vector [t1,t2] which 
+    the same number of elements than a row of the matrix Mb, and plot it.
+    '''
+    m = len(vp)
+    assert m > 1, 'Use plot_algebraic_B_Spline for a partition without breakpoints'
+    x1 = [Delta[i] for i in range(len(Delta)-1)]
+    x2 = [Delta[i] for i in range(1,len(Delta))]
+    vtau_1, vtau_2 = get_tau(x1, x2, tau_1)
+    ct = []
+    Mb = []
+    for i in range(m):
+        xc = np.linspace(x1[i], x2[i], lt, endpoint=True)
+        for x in xc:
+            ct.append(phi_i(x, x1, x2, i, tau_1))
+    for i in range(m):
+        for q in range(vp[i]+1):
+            ptc = []
+            for k in range(m):
+                xc = np.linspace(x1[k], x2[k], lt, endpoint=True)
+                if (k == i):
+                    for x in xc:
+                        ptc.append(D_s_b_mu(kk, x, vp[k], x1[k], x2[k], vw, q))
+                else: 
+                    for x in xc:
+                        ptc.append(0)
+            Mb.append(ptc)
+    return np.array(Mb), ct   
+
+def plott_C_DB(kk, vp, Delta, tau_1, vw, lt, r):
+    '''
+    Function that plot the GTB-spline basis.
+    '''
+    A_r = A_rho_B(vp, r, vw, Delta)
+    C = Extraction_Operator(A_r)
+    # C = M_almost_zero(C1) 
+    Bb, ct = get_matrix_D_s_b_mu(kk, vp, Delta, tau_1, vw, lt)
+    N = C.dot(Bb)
+    nr, nc = N.shape
+    for i in range(nr):
+        plt.plot(ct, N[i,:])
+    plt.show()
+    
+def nullspace(a):
+    '''
+    Nullspace computation of a smoothness constraint based on knot insertion, 
+    see Book**1 Algorithm 6.1.
+    '''
+    n = len(a)
+    C_tilde = np.zeros((n-1,n), dtype = np.float64)
+    k = 0
+    while (k < (n - 1)) and (abs(a[k]) == 0):
+        C_tilde[k,k] = 1
+        k = k + 1
+    C_tilde[k,k] = 1
+    while ((k + 1) < (n-1)) and (abs(a[k + 1]) != 0):
+        C_tilde[k, k + 1] = -C_tilde[k,k]*a[k]/a[k+1]
+        C_tilde[k + 1, k + 1] = 1 - C_tilde[k, k + 1]
+        k = k + 1
+    while (k < (n - 1)):
+        C_tilde[k, k + 1] = 1
+        k = k + 1
+    return C_tilde
+
+def CA_rho_B(x, vp, i_B, j_B, Delta, w, r):
+    '''
+    Function to build one column of the input matrix for the Generalized Bezier extraction
+    See ref**1, pg 17, Theorem 6.2
+    '''
+    m = len(vp)
+    theta = sum((vp[i] + 1) for i in range(m))
+    B = np.zeros(theta)
+    if (i_B < m):
+        x_i_1 = Delta[i_B]
+        x_i = Delta[i_B+1]
+        x_l_1 = Delta[i_B-1]
+        for i in range(m):
+            c = 0
+            for q in range(vp[i]+1):
+                ind = sum((vp[k] + 1) for k in range(i)) + q 
+                if (i == i_B): 
+                    if (c < j_B + 1):
+                        B[ind] = jump_xi_k(j_B, x, vp[i], q, x_i_1, x_i, w)
+                        c = c + 1
+                    else:
+                        B[ind] = 0
+                elif (i == i_B-1):
+                    if (c < vp[i]-j_B):
+                        B[ind] = 0
+                        c = c + 1
+                    else:
+                        B[ind] = jump_xi_k(j_B, x, vp[i], q, x_l_1, x_i_1, w)
+                else:
+                    B[ind] = 0
+        return B
+
+def CA_rho_BPS(x, vp, i_B, j_B, Delta, w, r):
+    m = len(vp)
+    theta = sum((vp[i] + 1) for i in range(m))
+    B = np.zeros(theta)
+    av = [0, m-1]
+    for i in av:
+        if(i == 0):
+            c = 0
+            for q in range(vp[i]+1):
+                ind = sum((vp[k] + 1) for k in range(i)) + q 
+                if (c < j_B + 1):
+                    B[ind] = -k_th_diff_G_B_S(j_B, Delta[0], vp[i], q, Delta[0], Delta[1], w)
+                    c = c + 1
+                else:
+                    B[ind] = 0
+        else:
+            c = 0
+            for q in range(vp[i]+1):
+                ind = sum((vp[k] + 1) for k in range(i)) + q 
+                if (c < vp[i]-j_B):
+                    B[ind] = 0
+                    c = c + 1
+                else:
+                    B[ind] = k_th_diff_G_B_S(j_B, Delta[m], vp[i], q, Delta[m-1], Delta[m], w)
+    return B
+
+def A_rho_B(vp, r, w, Delta):
+    '''
+    Function to build the input matrix for the Generalized Bezier extraction
+    See ref**1, pg 17, Theorem 6.2
+    '''
+    m = len(vp)
+    A_r = []
+    for i_B in range(1,m):
+        MP = []
+        for j_B in range(r[i_B] + 1):
+            MP.append(CA_rho_B(Delta[i_B], vp, i_B, j_B, Delta, w, r))
+        A_r.append(np.array(MP).T)
+    return A_r
+
+
+def A_rho_BPS(vp, r, w, Delta):
+    '''
+    Function to build the input matrix for the Generalized Bezier extraction
+    See ref**1, pg 17, Theorem 6.2
+    '''
+    m = len(vp)
+    A_r = []
+    i_B = m 
+    for j_B in range(r[0] + 1):
+        A_r.append(CA_rho_BPS(Delta[i_B], vp, i_B, j_B, Delta, w, r[0]))
+    return np.array(A_r).T
+
+def Extraction_Operator(A_r):
+    '''
+    Function to calculate Generalized Bezier extraction
+    See ref**1, pg 18, Algorithm 6.2
+    '''
+    rAr, cAr = A_r.shape
+    C = np.eye(rAr)
+    for rho in range(cAr):
+        C_tilde = nullspace(A_r[:,rho])
+        C = C_tilde.dot(C)
+        A_r = C_tilde.dot(A_r)
+    return C
+
+def extraction_mat(A_r, ns):
+    rAr, cAr = A_r[0].shape
+    H = np.eye(rAr)
+    for i in range(1,ns):
+        L = H.dot(A_r[i-1])
+        for j in range(r[i]+1):
+            H_bar = nullspace(L[:,j])
+            H = H_bar.dot(H)
+            L = H_bar.dot(L)
+    return H
+
+def extraction_mat_ps(A_r, A_rp, ns, rps):
+    C = extraction_mat(A_r, ns)
+    Hper = circshift(C, rps+1)
+    Lper = Hper.dot(A_rp)
+    for j in range(rps+1):
+        H_bar = nullspace(Lper[:,j])
+        Hper = H_bar.dot(Hper)
+        Lper = H_bar.dot(Lper)
+    return Hper
+
+def circshift(H, r):
+    nr, nc = H.shape
+    M = np.zeros((nr,nc))
+    for i in range(nr):
+        M[(i+r) % nr,:] = H[i, :]
+    return M
+
+def plott_CBPS(vp, Delta, tau_1, vw, lt, r):
+    '''
+    Function that plot the GTB-spline basis.
+    '''
+    A_r = A_rho_B(vp, r, vw, Delta)
+    A_rp = A_rho_BPS(vp, r, vw, Delta)
+    Cper = extraction_mat_ps(A_r, A_rp, len(vp), r[0])
+    Bb, ct = get_matrix_b_mu(vp, Delta, tau_1, vw, lt)
+    N = Cper.dot(Bb)
+    nr, nc = N.shape
+    for i in range(nr):
+        plt.plot(ct, N[i,:])
+    plt.show()
+    
+    
+def plot_ellipse(vp, Delta, tau_1, lt, vw, r, rp):
+    '''
+    Plot circles and ellipses using C^{1} rational splines
+    See ref**2, pg 6, subsection 2.4
+    '''
+    A_r = A_rho_B(vp, r, vw, Delta)
+    A_rp = A_rho_BPS(vp, r, vw, Delta)
+    Haux = extraction_mat_ps(A_r, A_rp, len(vp), r[0]) 
+    Mb, ct = get_matrix_b_mu(vp, Delta, tau_1, vw, lt)
+    MB = np.array(Haux).dot(Mb)
+    nr, nc = MB.shape
+    xcp = []
+    ycp = []
+    xc = [rp[i][0] for i in range(nr)]
+    yc = [rp[i][1] for i in range(nr)]
+    xc.append(rp[0][0])
+    yc.append(rp[0][1])
+    for i in range(nc):
+        ft = np.array([0,0])
+        for j in range(nr):
+            ft = ft + rp[j]*MB[j,i]
+        xcp.append(ft[0])
+        ycp.append(ft[1])
+    plt.plot(xcp, ycp)
+    plt.plot(xc, yc)
+    plt.scatter(xc, yc)
+    return plt.show()
+
+'''Trying to program the MultiDegree Trigonometric Splines'''
+vp = [2,2,2,2]
+Delta = [0,1,2,3,4]
+# m = len(vp)
+r = [1,1,1,1,1]
+tau_1 = 0
+vw = np.pi/2
+lt = 25
+k = 1
+plott_CBPS(vp, Delta, tau_1, vw, lt, r)
+a_x = 1
+a_y = 1
+rp = [np.array([a_x,a_y]),np.array([a_x,-a_y]),np.array([-a_x,-a_y]),np.array([-a_x,a_y])]
+plot_ellipse(vp, Delta, tau_1, lt, vw, r, rp)
+# plot_b_mu(vp, Delta, tau_1, vw, lt)
+# plott_CB(vp, Delta, tau_1, vw, lt, r)
